@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DllInjection", "DllInjection\DllInjection.vcxproj", "{1E1CBC8D-5366-437F-A1D3-6EED89B8F111}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Injected", "Injected\Injected.vcxproj", "{810EF813-29EE-4B02-8791-686C0A7EC18B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{1E1CBC8D-5366-437F-A1D3-6EED89B8F111}.Release|x64.Build.0 = Release|x64
 		{1E1CBC8D-5366-437F-A1D3-6EED89B8F111}.Release|x86.ActiveCfg = Release|Win32
 		{1E1CBC8D-5366-437F-A1D3-6EED89B8F111}.Release|x86.Build.0 = Release|Win32
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Debug|x64.ActiveCfg = Debug|x64
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Debug|x64.Build.0 = Debug|x64
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Debug|x86.ActiveCfg = Debug|Win32
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Debug|x86.Build.0 = Debug|Win32
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Release|x64.ActiveCfg = Release|x64
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Release|x64.Build.0 = Release|x64
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Release|x86.ActiveCfg = Release|Win32
+		{810EF813-29EE-4B02-8791-686C0A7EC18B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
