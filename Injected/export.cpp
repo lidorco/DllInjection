@@ -15,7 +15,7 @@ BOOL CALLBACK EnumWindowsProc(
 	auto pidToSet = *(PDWORD(lParam));
 	if (outputPid == pidToSet)
 	{
-		SetWindowText(hwnd, "We changed the title bar!!!");
+		SetWindowText(hwnd, "NOTEPAD is PWNED by Lidor and Neriya!");
 	}
 
 	return TRUE;
