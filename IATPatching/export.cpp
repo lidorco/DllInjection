@@ -21,9 +21,11 @@ PIMAGE_IMPORT_DESCRIPTOR getImportTable(HMODULE hInstance)
 	IMAGE_DATA_DIRECTORY dataDirectory;
 
 	dosHeader = (PIMAGE_DOS_HEADER)hInstance;
-	ntHeader = (PIMAGE_NT_HEADERS)((PBYTE)dosHeader + dosHeader->e_lfanew);	optionalHeader = (IMAGE_OPTIONAL_HEADER)(ntHeader->OptionalHeader);
+	ntHeader = (PIMAGE_NT_HEADERS)((PBYTE)dosHeader + dosHeader->e_lfanew);
+    optionalHeader = (IMAGE_OPTIONAL_HEADER)(ntHeader->OptionalHeader);
 	dataDirectory = (IMAGE_DATA_DIRECTORY)(optionalHeader.DataDirectory[IMPORT_TABLE_OFFSET]);
-	return (PIMAGE_IMPORT_DESCRIPTOR)((PBYTE)hInstance + dataDirectory.VirtualAddress);}
+	return (PIMAGE_IMPORT_DESCRIPTOR)((PBYTE)hInstance + dataDirectory.VirtualAddress);
+}
 
 
 bool rewriteThunk(PIMAGE_THUNK_DATA pThunk, void* newFunc)
@@ -33,7 +35,8 @@ bool rewriteThunk(PIMAGE_THUNK_DATA pThunk, void* newFunc)
 	VirtualProtect(pThunk, 4096, PAGE_READWRITE, &CurrentProtect);
 	pThunk->u1.Function = (DWORD)newFunc;
 	VirtualProtect(pThunk, 4096, CurrentProtect, &junk);
-	return true;}
+	return true;
+}
 
 
 BOOL MyWriteFile(
@@ -52,6 +55,7 @@ BOOL MyWriteFile(
         outFile.open("C:\\output.txt");
         outFile << (char*)lpBuffer;
     }
+
     return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
 }
 
@@ -60,9 +64,8 @@ void patchIAT()
 	HMODULE currentProcessImage = GetModuleHandleA(NULL);
 	PIMAGE_IMPORT_DESCRIPTOR importedModule;
 	PIMAGE_THUNK_DATA pFirstThunk, pOriginalFirstThunk;
-	PIMAGE_IMPORT_BY_NAME pFuncData;
-	importedModule = getImportTable(currentProcessImage);
-	while (*(WORD*)importedModule != 0)
+	PIMAGE_IMPORT_BY_NAME pFuncData;    importedModule = getImportTable(currentProcessImage);
+    while (*(WORD*)importedModule != 0)
 	{
 		//std::cout << (char*)((PBYTE)currentProcessImage + importedModule->Name) << std::endl;
 
@@ -70,25 +73,26 @@ void patchIAT()
 		pOriginalFirstThunk = (PIMAGE_THUNK_DATA)((PBYTE)currentProcessImage + importedModule ->OriginalFirstThunk);
 		pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
 
-		while (*(WORD*)pFirstThunk != 0 && *(WORD*)pOriginalFirstThunk != 0)
-		{
-			//printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
-			if (strcmp("WriteFile", (char*)pFuncData->Name) == 0)
-			{
+        while (*(WORD*)pFirstThunk != 0 && *(WORD*)pOriginalFirstThunk != 0)
+        {
+            //printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
+            if (strcmp("WriteFile", (char*)pFuncData->Name) == 0)
+            {
                 OutputDebugStringW(L"PatchWriteFile");
-				printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
-				printf("Hooking... \n");
-								if (rewriteThunk(pFirstThunk, MyWriteFile))
+                printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
+                printf("Hooking... \n");
+                if (rewriteThunk(pFirstThunk, MyWriteFile))
                     OutputDebugStringW(L"PatchSuccesfully");
-					printf("Hooked %s successfully :)\n", "WriteFile");
-				
-			}
-			
-			pOriginalFirstThunk++;
-			pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
-			pFirstThunk++;
-		}
-		importedModule++; //next module (DLL)
+                printf("Hooked %s successfully :)\n", "WriteFile");
+
+            }
+
+            pOriginalFirstThunk++;
+            pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
+            pFirstThunk++;
+        }
+        
+        importedModule++; //next module (DLL)
 	}
 	
 }
