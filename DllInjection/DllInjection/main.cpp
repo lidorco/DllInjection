@@ -44,7 +44,7 @@ void dllInjection(int pid) {
 		return;
 	}
 
-	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\Injected.dll"), pHandle);
+	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\IATPatching.dll"), pHandle);
 	if (NULL == injectDllNameRemoteAddress) {
 		return;
 	}
