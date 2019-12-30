@@ -34,7 +34,6 @@ void dllInjection(int pid) {
 
 	LPTHREAD_START_ROUTINE loadLibraryAddress = (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle("kernel32.dll"),
 		"LoadLibraryA");
-
 	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\Injected.dll"), process);
 
 	if (injectDllNameRemoteAddress) {
@@ -50,9 +49,8 @@ int main(int argc, char **argv) {
 		std::cout << "Usage: " << argv[0] << " <pid>" << std::endl;
 		return 0;
 	}
+
 	std::cout << "injecting to pid " << argv[1] << std::endl;
-
 	dllInjection(atoi(argv[1]));
-
 	return 0;
 }

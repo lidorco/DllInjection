@@ -21,7 +21,6 @@ bool rewriteThunk(PIMAGE_THUNK_DATA pThunk, void* newFunc)
 	DWORD CurrentProtect;
 	DWORD junk;
 	VirtualProtect(pThunk, 4096, PAGE_READWRITE, &CurrentProtect);
-	DWORD sourceAddr = pThunk->u1.Function;
 	pThunk->u1.Function = (DWORD)newFunc;
 	VirtualProtect(pThunk, 4096, CurrentProtect, &junk);
 	return true;}
