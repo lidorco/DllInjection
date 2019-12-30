@@ -32,14 +32,29 @@ void dllInjection(int pid) {
 		return;
 	}
 
-	LPTHREAD_START_ROUTINE loadLibraryAddress = (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle("kernel32.dll"),
-		"LoadLibraryA");
-	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\Injected.dll"), process);
-
-	if (injectDllNameRemoteAddress) {
-		CreateRemoteThread(process, NULL, 0, loadLibraryAddress, injectDllNameRemoteAddress, 0, NULL);
+	HMODULE kernel32Handle = GetModuleHandle("kernel32.dll");
+	if (NULL == kernel32Handle) {
+		std::cout << "GetModuleHandle failed : " << GetLastError() << std::endl;
+		return;
 	}
-	
+
+	LPVOID loadLibraryAddress = (LPVOID)GetProcAddress(kernel32Handle, "LoadLibraryA");
+	if (NULL == loadLibraryAddress) {
+		std::cout << "GetProcAddress failed : " << GetLastError() << std::endl;
+		return;
+	}
+
+	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\Injected.dll"), process);
+	if (NULL == injectDllNameRemoteAddress) {
+		return;
+	}
+
+	HANDLE threadID = CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, injectDllNameRemoteAddress, 0, NULL);
+	if (threadID == NULL) {
+		std::cout << "CreateRemoteThread failed : " << GetLastError() << std::endl;
+		return;
+	}
+
 	CloseHandle(process);
 }
 
