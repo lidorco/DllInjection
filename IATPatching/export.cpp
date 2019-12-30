@@ -65,8 +65,9 @@ void patchIAT()
 	PIMAGE_IMPORT_DESCRIPTOR importedModule;
 	PIMAGE_THUNK_DATA pFirstThunk, pOriginalFirstThunk;
 	PIMAGE_IMPORT_BY_NAME pFuncData;
-    importedModule = getImportTable(currentProcessImage);
-    while (*(WORD*)importedModule != 0)
+	importedModule = getImportTable(currentProcessImage);
+	bool doneHooking = false;
+	while (*(WORD*)importedModule != 0)
 	{
 		//std::cout << (char*)((PBYTE)currentProcessImage + importedModule->Name) << std::endl;
 
@@ -79,23 +80,32 @@ void patchIAT()
             //printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
             if (strcmp("WriteFile", (char*)pFuncData->Name) == 0)
             {
-                OutputDebugStringW(L"PatchWriteFile");
-                printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
-                printf("Hooking... \n");
-                if (rewriteThunk(pFirstThunk, MyWriteFile))
-                    OutputDebugStringW(L"PatchSuccesfully");
-                printf("Hooked %s successfully :)\n", "WriteFile");
-
-            }
-
-            pOriginalFirstThunk++;
-            pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
-            pFirstThunk++;
-        }
-        
-        importedModule++; //next module (DLL)
+                OutputDebugStringW(L"Hooking PatchWriteFile");
+				//printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
+				
+				
+				if (rewriteThunk(pFirstThunk, MyWriteFile))
+				{
+					OutputDebugStringW(L"PatchSuccesfully");
+					//printf("Hooked %s successfully :)\n", "WriteFile");
+					doneHooking = true;
+					break;
+				}
+				
+			}
+			
+			pOriginalFirstThunk++;
+			pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
+			pFirstThunk++;
+		}
+		if(doneHooking)
+		{
+			break;
+		}
+		importedModule++; //next module (DLL)
 	}
-	
+
+	OutputDebugStringW(L"PatchWriteFile end");
 }
 
 BOOL GetFileNameFromHandle(HANDLE hFile, TCHAR* out)
@@ -201,7 +211,9 @@ BOOL APIENTRY DllMain(
     case DLL_PROCESS_ATTACH:
         OutputDebugStringW(L"DllMain");
         patchIAT();
+		OutputDebugStringW(L"IATPatching DllMain end");
     }
 
+	
     return TRUE;
 }
