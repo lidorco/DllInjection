@@ -26,8 +26,8 @@ LPVOID writeStringToProcess(std::string str, HANDLE process) {
 
 void dllInjection(int pid) {
 
-	HANDLE  process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	if (NULL == process) {
+	HANDLE  pHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	if (NULL == pHandle) {
 		std::cout << "OpenProcess failed : " << GetLastError() << std::endl;
 		return;
 	}
@@ -44,18 +44,18 @@ void dllInjection(int pid) {
 		return;
 	}
 
-	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\Injected.dll"), process);
+	LPVOID injectDllNameRemoteAddress = writeStringToProcess(std::string("C:\\Injected.dll"), pHandle);
 	if (NULL == injectDllNameRemoteAddress) {
 		return;
 	}
 
-	HANDLE threadID = CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, injectDllNameRemoteAddress, 0, NULL);
+	HANDLE threadID = CreateRemoteThread(pHandle, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, injectDllNameRemoteAddress, 0, NULL);
 	if (threadID == NULL) {
 		std::cout << "CreateRemoteThread failed : " << GetLastError() << std::endl;
 		return;
 	}
 
-	CloseHandle(process);
+	CloseHandle(pHandle);
 }
 
 
