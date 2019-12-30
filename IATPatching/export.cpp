@@ -11,9 +11,12 @@ PIMAGE_IMPORT_DESCRIPTOR getImportTable(HMODULE hInstance)
 	IMAGE_DATA_DIRECTORY dataDirectory;
 
 	dosHeader = (PIMAGE_DOS_HEADER)hInstance;
-	ntHeader = (PIMAGE_NT_HEADERS)((PBYTE)dosHeader + dosHeader->e_lfanew);	optionalHeader = (IMAGE_OPTIONAL_HEADER)(ntHeader->OptionalHeader);
+	ntHeader = (PIMAGE_NT_HEADERS)((PBYTE)dosHeader + dosHeader->e_lfanew);
+	optionalHeader = (IMAGE_OPTIONAL_HEADER)(ntHeader->OptionalHeader);
 	dataDirectory = (IMAGE_DATA_DIRECTORY)(optionalHeader.DataDirectory[IMPORT_TABLE_OFFSET]);
-	return (PIMAGE_IMPORT_DESCRIPTOR)((PBYTE)hInstance + dataDirectory.VirtualAddress);}
+	return (PIMAGE_IMPORT_DESCRIPTOR)((PBYTE)hInstance + dataDirectory.VirtualAddress);
+
+}
 
 
 bool rewriteThunk(PIMAGE_THUNK_DATA pThunk, void* newFunc)
@@ -24,7 +27,16 @@ bool rewriteThunk(PIMAGE_THUNK_DATA pThunk, void* newFunc)
 	DWORD sourceAddr = pThunk->u1.Function;
 	pThunk->u1.Function = (DWORD)newFunc;
 	VirtualProtect(pThunk, 4096, CurrentProtect, &junk);
-	return true;}
+	return true;
+}
+
+
+
+
+typedef BOOL(WINAPI *FINDNEXTFILEWTYPE)(_In_ HANDLE hFindFile, _Out_ LPWIN32_FIND_DATAW lpFindFileData);
+typedef HANDLE(WINAPI *FINDFIRSTFILEWTYPE)(_In_ LPCWSTR lpFileName, _Out_ LPWIN32_FIND_DATAW lpFindFileData);
+FINDNEXTFILEWTYPE originalFindNextFileW;
+FINDFIRSTFILEWTYPE originalFindFirstFileW;
 
 
 BOOL
@@ -34,10 +46,22 @@ MyFindNextFileW(
 	_Out_ LPWIN32_FIND_DATAW lpFindFileData
 )
 {
+	std::cout << "FindNextFileW called " << std::endl;
 	SetLastError(ERROR_NO_MORE_FILES);
 	return FALSE;
 }
 
+
+HANDLE
+WINAPI
+MyFindFirstFileW(
+	_In_ LPCWSTR lpFileName,
+	_Out_ LPWIN32_FIND_DATAW lpFindFileData
+)
+{
+	std::cout << "FindFirstFileW called " << std::endl;
+	return originalFindFirstFileW(lpFileName, lpFindFileData);
+}
 
 void patchIAT()
 {
@@ -65,6 +89,16 @@ void patchIAT()
 								if (rewriteThunk(pFirstThunk, MyFindNextFileW))
 					printf("Hooked %s successfully :)\n", "FindNextFileW");
 				
+			}
+
+
+			if (strcmp("FindFirstFileW", (char*)pFuncData->Name) == 0)
+			{
+				printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
+				printf("Hooking... \n");
+				if (rewriteThunk(pFirstThunk, MyFindFirstFileW))
+					printf("Hooked %s successfully :)\n", "FindFirstFileW");
+
 			}
 			
 			pOriginalFirstThunk++;
