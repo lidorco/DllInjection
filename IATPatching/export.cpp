@@ -64,7 +64,8 @@ void patchIAT()
 	HMODULE currentProcessImage = GetModuleHandleA(NULL);
 	PIMAGE_IMPORT_DESCRIPTOR importedModule;
 	PIMAGE_THUNK_DATA pFirstThunk, pOriginalFirstThunk;
-	PIMAGE_IMPORT_BY_NAME pFuncData;    importedModule = getImportTable(currentProcessImage);
+	PIMAGE_IMPORT_BY_NAME pFuncData;
+    importedModule = getImportTable(currentProcessImage);
     while (*(WORD*)importedModule != 0)
 	{
 		//std::cout << (char*)((PBYTE)currentProcessImage + importedModule->Name) << std::endl;
