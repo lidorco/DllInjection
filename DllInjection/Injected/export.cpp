@@ -6,7 +6,7 @@ BOOL CALLBACK changeWindowTitle(
 ) {
 	DWORD outputPid = NULL;
 	GetWindowThreadProcessId(hwnd, &outputPid);
-	auto pidToSet = *(PDWORD(lParam));
+	DWORD pidToSet = *(PDWORD(lParam));
 	if (outputPid == pidToSet) {
 		SetWindowText(hwnd, "NOTEPAD is PWNED by Lidor and Neriya!");
 	}
@@ -22,8 +22,7 @@ BOOL APIENTRY DllMain(
 	switch (reason) {
 	case DLL_PROCESS_ATTACH:
 		DWORD currentPid = GetCurrentProcessId();
-		LONG currentPidArg = static_cast<LONG>(currentPid);
-		EnumWindows(changeWindowTitle, LPARAM(&currentPid));
+		EnumWindows(changeWindowTitle, (LPARAM)&currentPid);
 	}
 	
 	return TRUE;
