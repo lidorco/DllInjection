@@ -59,16 +59,19 @@ BOOL MyWriteFile(
     return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
 }
 
-BOOL MyWriteFileEx(
-	HANDLE                          hFile,
-	LPCVOID                         lpBuffer,
-	DWORD                           nNumberOfBytesToWrite,
-	LPOVERLAPPED                    lpOverlapped,
-	LPOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+LSTATUS
+APIENTRY
+MyRegSetValueExW(
+	_In_ HKEY hKey,
+	_In_opt_ LPCWSTR lpValueName,
+	_Reserved_ DWORD Reserved,
+	_In_ DWORD dwType,
+	_In_reads_bytes_opt_(cbData) CONST BYTE * lpData,
+	_In_ DWORD cbData
 )
 {
-	OutputDebugStringW(L"MyWriteFileEx");
-	return WriteFileEx(hFile, lpBuffer, nNumberOfBytesToWrite, lpOverlapped, lpCompletionRoutine);
+	OutputDebugStringW(L"RegSetValueExW");
+	return RegSetValueExW(hKey, lpValueName, Reserved, dwType, lpData, cbData);
 }
 
 void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
@@ -87,23 +90,29 @@ void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
 		pOriginalFirstThunk = (PIMAGE_THUNK_DATA)((PBYTE)currentProcessImage + importedModule ->OriginalFirstThunk);
 		pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
 
-        while (*(WORD*)pFirstThunk != 0 && *(WORD*)pOriginalFirstThunk != 0)
-        {        	
-            if (strcmp(funcNameToPatch, (char*)pFuncData->Name) == 0)
-            {
-                OutputDebugStringW(L"Hooking:");
-				OutputDebugStringA(funcNameToPatch);
-				if (rewriteThunk(pFirstThunk, funcToRunInstead))
+		OutputDebugStringA((char*)((PBYTE)currentProcessImage + importedModule->Name));
+		if (strcmp("ADVAPI32.DLL", (char*)((PBYTE)currentProcessImage + importedModule->Name)) == 0) 
+		{
+			OutputDebugStringA((char*)((PBYTE)currentProcessImage + importedModule->Name));
+			while (*(WORD*)pFirstThunk != 0 && *(WORD*)pOriginalFirstThunk != 0)
+			{
+				OutputDebugStringA((char*)pFuncData->Name);
+				if (strcmp(funcNameToPatch, (char*)pFuncData->Name) == 0)
 				{
-					OutputDebugStringW(L"Patch Successfully");
-					doneHooking = true;
-					break;
+					OutputDebugStringW(L"Hooking:");
+					OutputDebugStringA(funcNameToPatch);
+					if (rewriteThunk(pFirstThunk, funcToRunInstead))
+					{
+						OutputDebugStringW(L"Patch Successfully");
+						doneHooking = true;
+						break;
+					}
 				}
-			}
 
-			pOriginalFirstThunk++;
-			pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
-			pFirstThunk++;
+				pOriginalFirstThunk++;
+				pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
+				pFirstThunk++;
+			}
 		}
 		if(doneHooking)
 		{
@@ -218,8 +227,8 @@ BOOL APIENTRY DllMain(
 		case DLL_PROCESS_ATTACH:
 	    {	    
 			OutputDebugStringW(L"DllMain");
-			patchIAT("WriteFile", MyWriteFile);
-			patchIAT("WriteFileEx", MyWriteFileEx);
+			patchIAT("RegSetValueExW", MyRegSetValueExW);
+			//patchIAT("WriteFileEx", MyWriteFileEx);
 			OutputDebugStringW(L"IATPatching DllMain end");
 		}
 		default: ;
