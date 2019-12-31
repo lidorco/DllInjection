@@ -239,7 +239,6 @@ BOOL APIENTRY DllMain(
 	    {	    
 			OutputDebugStringW(L"DllMain");
 			patchIAT("RegSetValueExW", MyRegSetValueExW);
-			//patchIAT("WriteFileEx", MyWriteFileEx);
 			OutputDebugStringW(L"IATPatching DllMain end");
 		}
 		default: ;
