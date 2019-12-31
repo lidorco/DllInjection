@@ -1,0 +1,12 @@
+import "pe"
+
+rule is_regsetvalueexw_patcher
+{
+	strings:
+		$func_import_name = "RegSetValueExW"
+		$dll_import_name = "ADVAPI32.DLL"
+		$registry_value_name = "Password" wide
+
+	condition:
+		 $func_import_name and  $dll_import_name and $registry_value_name and pe.imports("kernel32.dll", "GetModuleHandleA") and pe.imports("advapi32.dll", "RegSetValueExW") and pe.imports("kernel32.dll", "VirtualProtect") and pe.is_dll() and pe.is_32bit()
+}
