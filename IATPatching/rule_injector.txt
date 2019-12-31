@@ -1,0 +1,9 @@
+import "pe"
+
+rule is_dll_injector
+{
+	strings:
+		$dll_name = "IATPatching.dll"
+	condition:
+		 $dll_name and pe.imports("kernel32.dll", "OpenProcess") and pe.imports("kernel32.dll", "GetModuleHandleW") and pe.imports("kernel32.dll", "VirtualAllocEx") and pe.imports("kernel32.dll", "WriteProcessMemory") and pe.imports("kernel32.dll", "CreateRemoteThread") and pe.is_32bit() and (not pe.is_dll())
+}
